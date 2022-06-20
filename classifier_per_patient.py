@@ -15,9 +15,10 @@ from scipy.integrate import simps
 from sklearn.metrics import auc
 
 utc_offset = [-4, 0]
-patient_id = '154​'
+patient_id='154'
 
 path_dataset = os.path.join('Dataset', patient_id)
+
 ignored = {'undone'}
 list_file = [x for x in os.listdir(path_dataset) if x not in ignored]
 #print(list_file)​
