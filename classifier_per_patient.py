@@ -13,6 +13,9 @@ from matplotlib.axis import Axis
 from sklearn.metrics import confusion_matrix
 from scipy.integrate import simps
 from sklearn.metrics import auc
+from sklearn.multiclass import OneVsRestClassifier
+from sklearn.svm import SVC
+from sklearn import metrics
 
 utc_offset = [-4, 0]
 patient_id='154'
@@ -38,10 +41,18 @@ df = df[df['activity_level'].notna()]
 X = df.reset_index()['activity_level']
 y = df.reset_index()['Accl Validity']
 
+#clf = OneVsRestClassifier(SVC()).fit(X, y)
+#print(clf.score(X,y))
+
 threshold_01 = np.arange(0,100,0.5)
 threshold_12 = np.arange(0,100,0.5)
 
 n = len(threshold_01)
+y_2d = np.zeros((len(y), len(threshold_01)))
+
+for i in range(0, len(y)):
+    for j in range(0,n):
+        y_2d[i][j] = y[i]
 
 cm0 = np.empty((len(threshold_01),3,3),dtype = float)
 cm1 = np.empty((int(n*(n-1)/2),3,3),dtype = float)
@@ -54,6 +65,9 @@ y_pred0 = np.zeros(len(y))
 y_pred1 = np.zeros(len(y))
 y_pred2 = np.zeros(len(y))
 y_pred = np.zeros(len(y))
+y_pred02d = np.zeros((len(y), len(threshold_01)))
+
+
 #print(X[0])
 fp0 = np.empty(len(threshold_01), dtype = float)
 tp0 = np.empty(len(threshold_01), dtype = float)
@@ -69,14 +83,19 @@ fn1 =np.empty(int(n*(n-1)/2), dtype = float)
 tn1 = np.empty(int(n*(n-1)/2), dtype = float)
 
 
+#for lower threshold, 0-1
+isub=0
 for i in threshold_01:
     for j in range(0, len(X)):
         if X[j]<=i:
             y_pred0[j] = 0
+            y_pred02d[j][isub] = 0
         else:
             y_pred0[j] = 1
+            y_pred02d[j][isub] = 1
     cm0[counter] = confusion_matrix(y, y_pred0)
     counter+=1
+    isub+=1
 
 """
 #    try
@@ -106,6 +125,8 @@ fn0/=fn0.max()
 tn0/=tn0.max()
 sens0 = tp0/(fn0+tp0)
 spec0 = tn0/(tn0+fp0)
+aa = metrics.multilabel_confusion_matrix(y_2d, y_pred02d)
+
 
 plt.figure(1)
 plt.xlabel('False Positive Rate')
@@ -178,7 +199,7 @@ area1 = auc(df2['fp1'],df2['tp1'])
 print(area1)
 """
 
-#for 2
+#for 2 - higher threshold, between 1-2
 counter=0
 for i in threshold_12:
     for j in range(0, len(X)):
