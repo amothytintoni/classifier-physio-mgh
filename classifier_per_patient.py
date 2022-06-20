@@ -84,18 +84,18 @@ tn1 = np.empty(int(n*(n-1)/2), dtype = float)
 
 
 #for lower threshold, 0-1
-isub=0
+#isub=0
 for i in threshold_01:
     for j in range(0, len(X)):
-        if X[j]<=i:
+        if X[j]<i:
             y_pred0[j] = 0
-            y_pred02d[j][isub] = 0
+            #y_pred02d[j][isub] = 0
         else:
             y_pred0[j] = 1
-            y_pred02d[j][isub] = 1
+            #y_pred02d[j][isub] = 1
     cm0[counter] = confusion_matrix(y, y_pred0)
     counter+=1
-    isub+=1
+    #isub+=1
 
 """
 #    try
@@ -125,7 +125,7 @@ fn0/=fn0.max()
 tn0/=tn0.max()
 sens0 = tp0/(fn0+tp0)
 spec0 = tn0/(tn0+fp0)
-aa = metrics.multilabel_confusion_matrix(y_2d, y_pred02d)
+#aa = metrics.multilabel_confusion_matrix(y_2d, y_pred02d)
 
 
 plt.figure(1)
