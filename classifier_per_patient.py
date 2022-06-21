@@ -30,18 +30,87 @@ df = pd.DataFrame()
 for filename in list_file:
     # read_data = pd.read_excel(os.path.join(path_dataset, filename))
     #df = pd.read_csv('Dataset/154/154_2022-06-10.csv')[['point_awake', 'point_sleep', 'Accl Validity']]
-    read_data = pd.read_csv(os.path.join(path_dataset, filename), encoding = "ISO-8859-1")[['point_awake', 'point_sleep', 'Accl Validity']]
+    read_data = pd.read_csv(os.path.join(path_dataset, filename), encoding = "ISO-8859-1")[['point_awake', 'point_sleep', 'Accl Validity','dateTime']]
     
     #print(filename, len(read_data))
     df = pd.concat((df, read_data),ignore_index = True)
-    
+
+
+#initialize X and y
 df['activity_level'] = ((df['point_awake'])/(df['point_sleep']+df['point_awake']))*100
 #df = df[not np.isnan(df.activity_level)]
 df = df[df['activity_level'].notna()]
+df = df.reset_index()
+
+count=0
+dateTimeArr = ["" for x in range(0,len(df['Accl Validity']))]
+for i in range(0,len(df['dateTime'])):    
+    if ((df['Accl Validity'][i]!=0) and (df['activity_level'][i]==0)):
+        dateTimeArr[count] = df['dateTime'][i]
+        count+=1
+
 X = df.reset_index()['activity_level']
+logX = np.log(X)
 y = df.reset_index()['Accl Validity']
 y_binary1 = np.zeros(len(y))
 y_binary2 = np.zeros(len(y))
+X0 = df[df['Accl Validity']==0]['activity_level']
+X1 = df[df['Accl Validity']==1]['activity_level']#.drop[0]
+#X0 = df[df['Accl Validity']==0]['activity_level']#.drop[0]
+X2 = df[df['Accl Validity']==2]['activity_level']#.drop[0]
+#X2 = df[df['Accl Validity']==2].drop(df.iloc[0,:], inplace=True)['activity_level']
+X1and2 = df[df['Accl Validity']!=0]['activity_level']
+
+
+X0wo0 = df[df['Accl Validity']==0].reset_index()['activity_level']#.drop(index=0)
+#print(type(X0wo0))
+X1wo0 = df[df['Accl Validity']==1].reset_index()['activity_level']#.drop(index=[0,3,4,9,10,11,12,13,14])
+X2wo0 = df[df['Accl Validity']==2].reset_index()['activity_level']#.drop(index=[0,1,2,3,4,5,6])
+X1and2wo0 = df[df['Accl Validity']!=0].reset_index()['activity_level']#.drop(index=[0,1,4,5,6,7,8,9,10,11])
+
+#remove 0 for log transformation
+
+
+"""
+X0wo0 = X0wo0[(['activity_level']<50)]
+X1wo0 = X1wo0[(df['activity_level']<50)]
+X2wo0 = X2wo0[df['activity_level']<50]
+X1and2wo0 = X1and2wo0[(df['activity_level']<50)]
+"""
+binsno = 100
+
+plt.figure(5)
+plt.hist(X1and2,bins=binsno,histtype = 'step',color ='blue', label = 'Have motion')
+plt.hist(np.log(X0),bins=binsno, color ='red',label = 'No motion')
+plt.title("No motion and have motion distribution")
+plt.xlabel('Activity Score')
+plt.ylabel('Frequency')
+plt.legend()
+
+plt.figure(6)
+plt.hist(X1,bins=binsno, histtype = 'step',color = 'blue',label = 'Moderate motion')
+plt.hist(X2,bins=binsno, color = 'green',label = 'High motion')
+plt.title("Moderate motion and High motion distribution")
+plt.xlabel('Activity Score')
+plt.ylabel('Frequency')
+plt.legend()
+
+plt.figure(7)
+plt.hist(X1and2wo0,bins=binsno,histtype = 'step',color ='blue', label = 'Have motion')
+plt.hist(X0wo0,bins=binsno, color ='red',label = 'No motion')
+plt.title("No motion and have motion distribution")
+plt.xlabel('Activity Score')
+plt.ylabel('Frequency')
+plt.legend()
+
+plt.figure(8)
+plt.hist(X1wo0,bins=binsno, histtype = 'step',color = 'blue',label = 'Moderate motion')
+plt.hist(X2wo0,bins=binsno, color = 'green',label = 'High motion')
+plt.title("Moderate motion and High motion distribution")
+plt.xlabel('Activity Score')
+plt.ylabel('Frequency')
+plt.legend()
+
 
 for i in range(0,len(y)):
     if y[i] == 2:
@@ -153,18 +222,28 @@ spec1v2 = np.append(spec0v1, 1)
 plt.figure(3)
 plt.xlabel('False Positive Rate')
 plt.ylabel('True Positive Rate')
+s="AUC = %.3f"
+area0v1 = auc(fp0v1,tp0v1)
 plt.plot(fp0v1,tp0v1, 'r-', label = 'no vs have motion')
+plt.plot([], [], ' ', label=s%area0v1)
 plt.title('ROC (TP vs FP)')
 plt.legend()
 
+#plt.figtext(0.7,0.2,s%area0v1)
+
 plt.figure(4)
+
+areass0v1 = auc(sens0v1,spec0v1)
 plt.plot(spec0v1,sens0v1, 'r-', label = 'no vs have motion')
+plt.plot([], [], ' ', label=s%areass0v1)
 plt.xlabel('Specificity')
 plt.ylabel('Sensitivity')
 plt.title('ROC (Sens vs Spec)')
 plt.legend()
 
-area0v1 = auc(fp0v1,tp0v1)
+
+#plt.figtext(0.2,0.2,s%areass0v1)
+
 
 
 print(area0v1)
@@ -199,25 +278,33 @@ spec1v2 = tn1v2/(tn1v2+fp1v2)
 
 fp1v2 = np.append(fp1v2, 0)
 tp1v2 = np.append(tp1v2, 0)
+spec1v2 = np.append(spec1v2,1)
+sens1v2 = np.append(sens1v2,0)
 
 plt.figure(3)
 plt.xlabel('False Positive Rate')
 plt.ylabel('True Positive Rate')
+area1v2 = auc(fp1v2,tp1v2)
 plt.plot(fp1v2,tp1v2, 'g-', label = 'moderate vs high motion')
+plt.plot([], [], ' ', label=s%area1v2)
 plt.title('ROC (TP vs FP)')
 plt.legend()
 
 plt.figure(4)
+areass1v2 = auc(spec1v2,sens1v2)
 plt.plot(spec1v2,sens1v2, 'g-', label = 'moderate vs high motion')
+plt.plot([], [], ' ', label=s%areass1v2)
 plt.xlabel('Specificity')
 plt.ylabel('Sensitivity')
 plt.title('ROC (Sens vs Spec)')
 plt.legend()
 
-area1v2 = auc(fp1v2,tp1v2)
 
 
 print(area1v2)
+
+
+#distribution plot
 
 
 
@@ -375,6 +462,8 @@ print(area2)
 """
 threshold_01 = np.append(threshold_01, 100)
 spec0v1 = np.delete(spec0v1,100)
+spec1v2 = np.delete(spec1v2,100)
+sens1v2 = np.delete(sens1v2,100)
 
 fig, ax1 = plt.subplots()
 
@@ -459,11 +548,6 @@ print(area1)
 """
 
 """
-X0 = df[df['Accl Validity']==0].iloc[1:-1]['activity_level']
-X1 = df[df['Accl Validity']==1].iloc[1:-1]['activity_level']#.drop[0]
-#X0 = df[df['Accl Validity']==0]['activity_level']#.drop[0]
-X2 = df[df['Accl Validity']==2].iloc[1:-1]['activity_level']#.drop[0]
-#X2 = df[df['Accl Validity']==2].drop(df.iloc[0,:], inplace=True)['activity_level']
 #X_train,X_test,y_train,y_test = train_test_split(X,y,test_size=0.3)
 #X_train,X_val,y_train,y_val = train_test_split(X_train,y_train, test_size=0.2)
 ​
