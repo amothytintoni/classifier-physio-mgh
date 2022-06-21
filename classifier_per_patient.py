@@ -81,7 +81,7 @@ binsno = 100
 
 plt.figure(5)
 plt.hist(X1and2,bins=binsno,histtype = 'step',color ='blue', label = 'Have motion')
-plt.hist(np.log(X0),bins=binsno, color ='red',label = 'No motion')
+plt.hist(X0,bins=binsno, color ='red',label = 'No motion')
 plt.title("No motion and have motion distribution")
 plt.xlabel('Activity Score')
 plt.ylabel('Frequency')
