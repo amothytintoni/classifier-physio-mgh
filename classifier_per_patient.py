@@ -62,14 +62,17 @@ X2 = df[df['Accl Validity']==2]['activity_level']#.drop[0]
 X1and2 = df[df['Accl Validity']!=0]['activity_level']
 
 
-X0wo0 = df[df['Accl Validity']==0].reset_index()['activity_level']#.drop(index=0)
-#print(type(X0wo0))
+#remove 0 for log transformation and clearer distribution graph
+X0wo0 = df[df['Accl Validity']==0].reset_index()['activity_level']
 X1wo0 = df[df['Accl Validity']==1].reset_index()['activity_level']#.drop(index=[0,3,4,9,10,11,12,13,14])
 X2wo0 = df[df['Accl Validity']==2].reset_index()['activity_level']#.drop(index=[0,1,2,3,4,5,6])
 X1and2wo0 = df[df['Accl Validity']!=0].reset_index()['activity_level']#.drop(index=[0,1,4,5,6,7,8,9,10,11])
 
-#remove 0 for log transformation
 
+X0wo0 = X0wo0[(X0wo0!=0)]
+X1wo0 = X1wo0[(X1wo0!=0)]
+X2wo0 = X2wo0[(X2wo0!=0)]
+X1and2wo0 = X1and2wo0[(X1and2wo0!=0)]
 
 """
 X0wo0 = X0wo0[(['activity_level']<50)]
@@ -77,7 +80,7 @@ X1wo0 = X1wo0[(df['activity_level']<50)]
 X2wo0 = X2wo0[df['activity_level']<50]
 X1and2wo0 = X1and2wo0[(df['activity_level']<50)]
 """
-binsno = 100
+binsno = 50
 
 plt.figure(5)
 plt.hist(X1and2,bins=binsno,histtype = 'step',color ='blue', label = 'Have motion')
@@ -111,7 +114,24 @@ plt.xlabel('Activity Score')
 plt.ylabel('Frequency')
 plt.legend()
 
+plt.figure(9)
+plt.hist(np.log(X1and2wo0),bins=binsno, histtype = 'step',color = 'blue',label = 'Have motion')
+plt.hist(np.log(X0wo0),bins=binsno, color = 'red',label = 'No motion')
+plt.title("No motion and Have motion log-transformed distribution")
+plt.xlabel('Activity Score')
+plt.ylabel('Frequency')
+plt.legend()
 
+plt.figure(10)
+plt.hist(np.log(X1wo0),bins=binsno, histtype = 'step',color = 'blue',label = 'Moderate motion')
+plt.hist(np.log(X2wo0),bins=binsno, color = 'green',label = 'High motion')
+plt.title("Moderate motion and High motion log-transformed distribution")
+plt.xlabel('Activity Score')
+plt.ylabel('Frequency')
+plt.legend()
+
+
+"""(+200)
 for i in range(0,len(y)):
     if y[i] == 2:
         y_binary1[i] = 1
@@ -311,7 +331,7 @@ print(area1v2)
 
 #for lower threshold, 0-1
 #isub=0
-
+"""#(-200)
 """
 counter=0
 for i in threshold_01:
@@ -460,6 +480,8 @@ area2 = auc(fp2,tp2)
 
 print(area2)
 """
+
+"""(+49)
 threshold_01 = np.append(threshold_01, 100)
 spec0v1 = np.delete(spec0v1,100)
 spec1v2 = np.delete(spec1v2,100)
@@ -508,7 +530,7 @@ ax2.tick_params(axis='y', labelcolor=color)
 fig.tight_layout()  # otherwise the right y-label is slightly clipped
 plt.show()
 
-
+"""#(-49)
 """
 counter=0
 for i in threshold_01:
