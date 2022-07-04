@@ -16,11 +16,12 @@ from sklearn.metrics import auc
 from sklearn.multiclass import OneVsRestClassifier
 from sklearn.svm import SVC
 from sklearn import metrics
+from scipy import stats
 
 utc_offset = [-4, 0]
 patient_id='154'
 
-path_dataset = os.path.join('Dataset', patient_id)
+path_dataset = os.path.join('Dataset', 'new')
 
 ignored = {'undone'}
 list_file = [x for x in os.listdir(path_dataset) if x not in ignored]
@@ -68,19 +69,136 @@ X1wo0 = df[df['Accl Validity']==1].reset_index()['activity_level']#.drop(index=[
 X2wo0 = df[df['Accl Validity']==2].reset_index()['activity_level']#.drop(index=[0,1,2,3,4,5,6])
 X1and2wo0 = df[df['Accl Validity']!=0].reset_index()['activity_level']#.drop(index=[0,1,4,5,6,7,8,9,10,11])
 
-
+"""
 X0wo0 = X0wo0[(X0wo0!=0)]
 X1wo0 = X1wo0[(X1wo0!=0)]
 X2wo0 = X2wo0[(X2wo0!=0)]
 X1and2wo0 = X1and2wo0[(X1and2wo0!=0)]
+"""
 
-"""
-X0wo0 = X0wo0[(['activity_level']<50)]
-X1wo0 = X1wo0[(df['activity_level']<50)]
-X2wo0 = X2wo0[df['activity_level']<50]
-X1and2wo0 = X1and2wo0[(df['activity_level']<50)]
-"""
+X0wo0 = X0wo0+1
+X1wo0 = X1wo0+1
+X2wo0 = X2wo0+1
+X1and2wo0 = X1and2wo0+1
+
+logX = np.log((X+1))
+threshold_log01 = np.arange(0,logX.max(), 0.03)
+threshold_log12 = np.arange(0,logX.max(), 0.03)
+
+"""#boxcox (+9)
+plt.figure(13)
+res0 = stats.probplot(X,plot=plt)
+plt.title('Activity Score Probability Plot before transformations')
+
+Xboxcox, lambd = stats.boxcox(X+1)
+plt.figure(14)
+res0 = stats.probplot(Xboxcox,plot=plt)
+plt.title('Activity Score Probability Plot after boxcox')
+"""#(-9)
+
 binsno = 50
+
+#calculate log ROC
+#initialize values, arrays
+for i in range(0,len(y)):
+    if y[i] == 2:
+        y_binary1[i] = 1
+
+counterr=0
+m=0
+for i in range(0, len(y)-counterr):
+    if y[i] ==0:
+        y_binary2 = np.delete(y_binary2, i-counterr)
+        counterr+=1
+    else:
+        if y[i] == 1:
+            y_binary2[i-counterr] = 0
+        else:
+            y_binary2[i-counterr] = 1
+nlog_1v2 = len(y_binary2)
+#print(counterr)
+
+#clf = OneVsRestClassifier(SVC()).fit(X, y)
+#print(clf.score(X,y))
+
+nlog = len(threshold_log01)
+
+cmlog0v1 = np.zeros((nlog,2,2))
+cmlog1v2 = np.zeros((nlog_1v2,2,2))
+
+delta_xlog = threshold_log01[1] - threshold_log01[0]
+counter=0
+
+y_pred0v1 = np.zeros(len(y))
+y_pred1v2 = np.zeros(len(y_binary2))
+
+fplog0v1 = np.empty(nlog, dtype = float)
+tplog0v1 = np.empty(nlog, dtype = float)
+fplog1v2 =np.empty(nlog, dtype = float)
+tplog1v2 = np.empty(nlog, dtype = float)
+fnlog0v1 =np.empty(nlog, dtype = float)
+tnlog0v1 =np.empty(nlog, dtype = float)
+fnlog1v2 =np.empty(nlog, dtype = float)
+tnlog1v2 = np.empty(nlog, dtype = float)
+
+
+
+#for no motion vs have motion (log)
+counter=0
+for i in threshold_log01:
+    for j in range(0, len(X)):
+        if logX[j]<=i:
+            y_pred0v1[j] = 0
+            #y_pred02d[j][isub] = 0
+        else:
+            y_pred0v1[j] = 1
+            #y_pred02d[j][isub] = 1
+    cmlog0v1[counter] = confusion_matrix(y_binary1, y_pred0v1)
+    counter+=1
+
+for i in range(0,nlog):
+    fnlog0v1[i] = cmlog0v1[i][1][0]
+    tnlog0v1[i] = cmlog0v1[i][0][0]
+    fplog0v1[i] = cmlog0v1[i][0][1]
+    tplog0v1[i] = cmlog0v1[i][1][1]
+
+fplog0v1/=fplog0v1.max()
+tplog0v1/=tplog0v1.max()
+fnlog0v1/=fnlog0v1.max()
+tnlog0v1/=tnlog0v1.max()
+senslog0v1 = tplog0v1/(fnlog0v1+tplog0v1)
+speclog0v1 = tnlog0v1/(tnlog0v1+fplog0v1)
+#aa = metrics.multilabel_confusion_matrix(y_2d, y_pred02d)
+
+fplog0v1 = np.append(fplog0v1, 0)
+tplog0v1 = np.append(tplog0v1, 0)
+senslog0v1 = np.append(senslog0v1, 0)
+speclog0v1 = np.append(speclog0v1, 1)
+senslog0v1[0] = 1 
+speclog0v1[0] = 0 
+
+
+plt.figure(11)
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+s="AUC = %.3f"
+arealog0v1 = auc(fplog0v1,tplog0v1)
+plt.plot(fplog0v1,tplog0v1, 'r-', label = 'no vs have motion')
+plt.plot([], [], ' ', label=s%arealog0v1)
+plt.title('ROC (TP vs FP, log transformed)')
+plt.legend()
+
+
+plt.figure(12)
+areasslog0v1 = auc(senslog0v1,speclog0v1)
+plt.plot(speclog0v1,senslog0v1, 'r-', label = 'no vs have motion')
+plt.plot([], [], ' ', label=s%areasslog0v1)
+plt.xlabel('Specificity')
+plt.ylabel('Sensitivity')
+plt.title('ROC (Sens vs Spec, log transformed)')
+plt.legend()
+
+
 
 plt.figure(5)
 plt.hist(X1and2,bins=binsno,histtype = 'step',color ='blue', label = 'Have motion')
@@ -131,7 +249,7 @@ plt.ylabel('Frequency')
 plt.legend()
 
 
-"""(+200)
+
 for i in range(0,len(y)):
     if y[i] == 2:
         y_binary1[i] = 1
@@ -331,8 +449,8 @@ print(area1v2)
 
 #for lower threshold, 0-1
 #isub=0
-"""#(-200)
-"""
+
+
 counter=0
 for i in threshold_01:
     for j in range(0, len(X)):
@@ -380,7 +498,109 @@ area0 = auc(fp0,tp0)
 
 print(area0)
 
-"""
+
+#for 2 - higher threshold, between 1-2
+counter=0
+for i in threshold_12:
+    for j in range(0, len(X)):
+        if X[j]>=i:
+            y_pred2[j] = 2
+        else:
+            y_pred2[j] = 1
+    cm2[counter] = confusion_matrix(y, y_pred2)
+    counter+=1
+    
+for i in range(0,len(threshold_01)):
+    fp2[i] = cm2[i][0][2]+cm2[i][1][2]
+    tp2[i] = cm2[i][2][2]
+    fn2[i] = cm2[i][2][1]+cm2[i][2][0]
+    tn2[i] = cm2[i][1][1]+cm2[i][0][0]+cm2[i][1][0]+cm2[i][0][1]
+
+fp2/=fp2.max()
+tp2/=tp2.max()
+fn2/=fn2.max()
+tn2/=tn2.max()
+
+fp2 = np.append(fp2,0)
+tp2 = np.append(tp2,0)
+
+fn2 = np.append(fn2,1)
+tn2 = np.append(tn2,1)
+
+sens2 = tp2/(fn2+tp2)
+spec2 = tn2/(tn2+fp2)
+
+
+plt.figure(1)
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.plot(fp2,tp2, 'g-', label = '1-2 threshold')
+plt.legend()
+
+plt.figure(2)
+plt.plot(spec2,sens2, 'g-', label = '1-2 threshold')
+plt.xlabel('Specificity')
+plt.ylabel('Sensitivity')
+plt.legend()
+
+area2 = auc(fp2,tp2)
+
+print(area2)
+
+
+
+threshold_01 = np.append(threshold_01, 100)
+spec0v1 = np.delete(spec0v1,100)
+spec1v2 = np.delete(spec1v2,100)
+sens1v2 = np.delete(sens1v2,100)
+
+fig, ax1 = plt.subplots()
+
+color = 'tab:red'
+ax1.set_xlabel('threshold')
+ax1.set_ylabel('sensitivity', color=color)
+ax1.plot(sens0v1, threshold_01, color=color)
+ax1.tick_params(axis='y', labelcolor=color)
+plt.title('Sensitivity and Specificity vs 0-1 Activity threshold')
+
+ax2 = ax1.twinx()  # instantiate a second axes that shares the same x-axis
+
+threshold_01 = np.delete(threshold_01, 100)
+
+color = 'tab:green'
+ax2.set_ylabel('specificity', color=color)  # we already handled the x-label with ax1
+ax2.plot(spec0v1, threshold_01, color=color)
+ax2.tick_params(axis='y', labelcolor=color)
+
+fig.tight_layout()  # otherwise the right y-label is slightly clipped
+plt.show()
+
+
+fig, ax1 = plt.subplots()
+#threshold_01 = np.delete(threshold_01, 100)
+threshold_12 = np.append(threshold_12, 100)
+
+color = 'tab:red'
+ax1.set_xlabel('threshold')
+ax1.set_ylabel('sensitivity', color=color)
+ax1.plot(sens1v2, threshold_01, color=color)
+ax1.tick_params(axis='y', labelcolor=color)
+plt.title('Sensitivity and Specificity vs 1-2 Activity threshold')
+
+ax2 = ax1.twinx()  # instantiate a second axes that shares the same x-axis
+
+color = 'tab:green'
+ax2.set_ylabel('specificity', color=color)  # we already handled the x-label with ax1
+ax2.plot(spec1v2, threshold_01, color=color)
+ax2.tick_params(axis='y', labelcolor=color)
+
+fig.tight_layout()  # otherwise the right y-label is slightly clipped
+plt.show()
+
+
+
+#dump, unused
+
 #for 1
 """
 counter=0
@@ -431,106 +651,9 @@ area1 = auc(df2['fp1'],df2['tp1'])
 #print(area0)
 print(area1)
 """
-"""
-#for 2 - higher threshold, between 1-2
-counter=0
-for i in threshold_12:
-    for j in range(0, len(X)):
-        if X[j]>=i:
-            y_pred2[j] = 2
-        else:
-            y_pred2[j] = 1
-    cm2[counter] = confusion_matrix(y, y_pred2)
-    counter+=1
-    
-for i in range(0,len(threshold_01)):
-    fp2[i] = cm2[i][0][2]+cm2[i][1][2]
-    tp2[i] = cm2[i][2][2]
-    fn2[i] = cm2[i][2][1]+cm2[i][2][0]
-    tn2[i] = cm2[i][1][1]+cm2[i][0][0]+cm2[i][1][0]+cm2[i][0][1]
-
-fp2/=fp2.max()
-tp2/=tp2.max()
-fn2/=fn2.max()
-tn2/=tn2.max()
-
-fp2 = np.append(fp2,0)
-tp2 = np.append(tp2,0)
-
-fn2 = np.append(fn2,1)
-tn2 = np.append(tn2,1)
-
-sens2 = tp2/(fn2+tp2)
-spec2 = tn2/(tn2+fp2)
 
 
-plt.figure(1)
-plt.xlabel('False Positive Rate')
-plt.ylabel('True Positive Rate')
-plt.plot(fp2,tp2, 'g-', label = '1-2 threshold')
-plt.legend()
 
-plt.figure(2)
-plt.plot(spec2,sens2, 'g-', label = '1-2 threshold')
-plt.xlabel('Specificity')
-plt.ylabel('Sensitivity')
-plt.legend()
-
-area2 = auc(fp2,tp2)
-
-print(area2)
-"""
-
-"""(+49)
-threshold_01 = np.append(threshold_01, 100)
-spec0v1 = np.delete(spec0v1,100)
-spec1v2 = np.delete(spec1v2,100)
-sens1v2 = np.delete(sens1v2,100)
-
-fig, ax1 = plt.subplots()
-
-color = 'tab:red'
-ax1.set_xlabel('threshold')
-ax1.set_ylabel('sensitivity', color=color)
-ax1.plot(sens0v1, threshold_01, color=color)
-ax1.tick_params(axis='y', labelcolor=color)
-plt.title('Sensitivity and Specificity vs 0-1 Activity threshold')
-
-ax2 = ax1.twinx()  # instantiate a second axes that shares the same x-axis
-
-threshold_01 = np.delete(threshold_01, 100)
-
-color = 'tab:green'
-ax2.set_ylabel('specificity', color=color)  # we already handled the x-label with ax1
-ax2.plot(spec0v1, threshold_01, color=color)
-ax2.tick_params(axis='y', labelcolor=color)
-
-fig.tight_layout()  # otherwise the right y-label is slightly clipped
-plt.show()
-
-
-fig, ax1 = plt.subplots()
-#threshold_01 = np.delete(threshold_01, 100)
-threshold_12 = np.append(threshold_12, 100)
-
-color = 'tab:red'
-ax1.set_xlabel('threshold')
-ax1.set_ylabel('sensitivity', color=color)
-ax1.plot(sens1v2, threshold_01, color=color)
-ax1.tick_params(axis='y', labelcolor=color)
-plt.title('Sensitivity and Specificity vs 1-2 Activity threshold')
-
-ax2 = ax1.twinx()  # instantiate a second axes that shares the same x-axis
-
-color = 'tab:green'
-ax2.set_ylabel('specificity', color=color)  # we already handled the x-label with ax1
-ax2.plot(spec1v2, threshold_01, color=color)
-ax2.tick_params(axis='y', labelcolor=color)
-
-fig.tight_layout()  # otherwise the right y-label is slightly clipped
-plt.show()
-
-"""#(-49)
 """
 counter=0
 for i in threshold_01:
